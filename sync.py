@@ -170,7 +170,8 @@ menu = st.sidebar.radio(
         "Dashboard Utama",
         "Statistik Kabupaten",
         "Statistik Komoditas",
-        "Data Petani"
+        "Data Petani",
+        "Peta Persebaran Petani"
     ]
 )
 
@@ -446,3 +447,105 @@ elif menu == "Data Petani":
             hide_index=True
         )
       
+# ==========================================
+# 10. PETA PERSEBARAN PETANI
+# ==========================================
+
+elif menu == "Peta Persebaran Petani":
+
+    st.subheader("Peta Persebaran Petani Sumatera Utara")
+
+    df_peta = read_data("""
+        SELECT
+            w.kabupaten,
+            w.desa,
+            w.latitude,
+            w.longitude,
+            COUNT(DISTINCT f.kode_petani) AS total_petani,
+            COALESCE(SUM(f.luas_lahan), 0) AS total_luas_lahan
+        FROM dw.fact_petani_harian f
+        INNER JOIN dw.dim_wilayah w
+            ON f.id_wilayah = w.id_wilayah
+        WHERE f.id_tanggal = %s
+        GROUP BY
+            w.kabupaten,
+            w.desa,
+            w.latitude,
+            w.longitude
+        ORDER BY total_petani DESC
+    """, (selected_date,))
+
+    if df_peta.empty:
+
+        st.warning("Data persebaran petani tidak tersedia.")
+
+    else:
+
+        # Memastikan koordinat berbentuk angka
+        df_peta["latitude"] = pd.to_numeric(
+            df_peta["latitude"],
+            errors="coerce"
+        )
+
+        df_peta["longitude"] = pd.to_numeric(
+            df_peta["longitude"],
+            errors="coerce"
+        )
+
+        # Menghapus koordinat yang kosong atau tidak valid
+        df_peta = df_peta.dropna(
+            subset=["latitude", "longitude"]
+        )
+
+        df_peta = df_peta[
+            df_peta["latitude"].between(-90, 90)
+            & df_peta["longitude"].between(-180, 180)
+        ]
+
+        if df_peta.empty:
+
+            st.warning(
+                "Data petani ditemukan, tetapi belum tersedia "
+                "koordinat latitude dan longitude yang valid."
+            )
+
+        else:
+
+            col1, col2, col3 = st.columns(3)
+
+            col1.metric(
+                "Lokasi Terpetakan",
+                f"{len(df_peta):,}"
+            )
+
+            col2.metric(
+                "Total Petani Terpetakan",
+                f'{int(df_peta["total_petani"].sum()):,}'
+            )
+
+            col3.metric(
+                "Total Luas Lahan",
+                f'{float(df_peta["total_luas_lahan"].sum()):,.2f} ha'
+            )
+
+            st.markdown(
+                "### Peta Lokasi Petani"
+            )
+
+            st.map(
+                df_peta,
+                latitude="latitude",
+                longitude="longitude",
+                zoom=6
+            )
+
+            st.markdown(
+                "### Rincian Persebaran Petani"
+            )
+
+            st.dataframe(
+                df_peta,
+                use_container_width=True,
+                hide_index=True
+            )
+
