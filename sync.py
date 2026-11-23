@@ -192,4 +192,4 @@ if menu == "Dashboard Utama":
     """, (selected_date,))
 
     if summary.empty:
-        st.warning("Data ringkasan tidak
+       st.warning("Data ringkasan tidak tersedia.")
