@@ -216,6 +216,235 @@ if menu == "Dashboard Utama":
             "Total Kabupaten",
             f'{int(row["total_kabupaten"]):,}'
         )
+# ==========================================
+# 7. STATISTIK KABUPATEN
+# ==========================================
+
+elif menu == "Statistik Kabupaten":
+
+    df_kabupaten = read_data("""
+        SELECT
+            kabupaten,
+            total_petani,
+            total_luas_lahan
+        FROM dw.vw_petani_kabupaten
+        WHERE id_tanggal = %s
+        ORDER BY total_petani DESC
+    """, (selected_date,))
+
+    st.subheader("Statistik Petani Berdasarkan Kabupaten")
+
+    if df_kabupaten.empty:
+        st.warning("Data statistik kabupaten tidak tersedia.")
+
+    else:
+        col1, col2 = st.columns(2)
+
+        col1.metric(
+            "Jumlah Kabupaten",
+            len(df_kabupaten)
+        )
+
+        col2.metric(
+            "Total Luas Lahan",
+            f'{df_kabupaten["total_luas_lahan"].sum():,.2f} ha'
+        )
+
+        fig = px.bar(
+            df_kabupaten.sort_values(
+                "total_petani",
+                ascending=True
+            ),
+            x="total_petani",
+            y="kabupaten",
+            orientation="h",
+            title="Jumlah Petani per Kabupaten",
+            labels={
+                "total_petani": "Jumlah Petani",
+                "kabupaten": "Kabupaten"
+            }
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+        fig_luas = px.bar(
+            df_kabupaten.sort_values(
+                "total_luas_lahan",
+                ascending=True
+            ),
+            x="total_luas_lahan",
+            y="kabupaten",
+            orientation="h",
+            title="Luas Lahan per Kabupaten",
+            labels={
+                "total_luas_lahan": "Luas Lahan (Ha)",
+                "kabupaten": "Kabupaten"
+            }
+        )
+
+        st.plotly_chart(fig_luas, use_container_width=True)
+
+
+# ==========================================
+# 8. STATISTIK KOMODITAS
+# ==========================================
+
+elif menu == "Statistik Komoditas":
+
+    df_komoditas = read_data("""
+        SELECT
+            nama_komoditas,
+            SUM(total_petani) AS total_petani,
+            SUM(total_luas_lahan) AS total_luas_lahan
+        FROM dw.vw_petani_komoditas
+        WHERE id_tanggal = %s
+        GROUP BY nama_komoditas
+        ORDER BY total_petani DESC
+    """, (selected_date,))
+
+    st.subheader("Statistik Petani Berdasarkan Komoditas")
+
+    if df_komoditas.empty:
+        st.warning("Data statistik komoditas tidak tersedia.")
+
+    else:
+        col1, col2 = st.columns(2)
+
+        col1.metric(
+            "Jumlah Komoditas",
+            len(df_komoditas)
+        )
+
+        col2.metric(
+            "Total Luas Lahan",
+            f'{df_komoditas["total_luas_lahan"].sum():,.2f} ha'
+        )
+
+        fig = px.bar(
+            df_komoditas,
+            x="nama_komoditas",
+            y="total_petani",
+            title="Jumlah Petani Berdasarkan Komoditas",
+            labels={
+                "nama_komoditas": "Komoditas",
+                "total_petani": "Jumlah Petani"
+            }
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+        fig_luas = px.pie(
+            df_komoditas,
+            names="nama_komoditas",
+            values="total_luas_lahan",
+            title="Distribusi Luas Lahan Berdasarkan Komoditas",
+            hole=0.4
+        )
+
+        st.plotly_chart(fig_luas, use_container_width=True)
+
+
+# ==========================================
+# 9. DATA PETANI
+# ==========================================
+
+elif menu == "Data Petani":
+
+    df_petani = read_data("""
+        SELECT
+            f.kode_petani,
+            f.nama_petani,
+            w.kabupaten,
+            w.desa,
+            k.nama_komoditas,
+            f.luas_lahan
+        FROM dw.fact_petani_harian f
+        LEFT JOIN dw.dim_wilayah w
+            ON f.id_wilayah = w.id_wilayah
+        LEFT JOIN dw.dim_komoditas k
+            ON f.id_komoditas = k.id_komoditas
+        WHERE f.id_tanggal = %s
+        ORDER BY f.nama_petani
+    """, (selected_date,))
+
+    st.subheader("Data Petani Sumatera Utara")
+
+    if df_petani.empty:
+        st.warning("Data petani tidak tersedia.")
+
+    else:
+        search = st.text_input(
+            "Cari nama atau kode petani"
+        )
+
+        col1, col2 = st.columns(2)
+
+        daftar_kabupaten = [
+            "Semua Kabupaten"
+        ] + sorted(
+            df_petani["kabupaten"]
+            .dropna()
+            .astype(str)
+            .unique()
+            .tolist()
+        )
+
+        daftar_komoditas = [
+            "Semua Komoditas"
+        ] + sorted(
+            df_petani["nama_komoditas"]
+            .dropna()
+            .astype(str)
+            .unique()
+            .tolist()
+        )
+
+        with col1:
+            kabupaten_pilih = st.selectbox(
+                "Filter Kabupaten",
+                daftar_kabupaten
+            )
+
+        with col2:
+            komoditas_pilih = st.selectbox(
+                "Filter Komoditas",
+                daftar_komoditas
+            )
+
+        df_tampil = df_petani.copy()
+
+        if search.strip():
+            mask = (
+                df_tampil["nama_petani"]
+                .astype(str)
+                .str.contains(search.strip(), case=False, na=False)
+                |
+                df_tampil["kode_petani"]
+                .astype(str)
+                .str.contains(search.strip(), case=False, na=False)
+            )
+
+            df_tampil = df_tampil[mask]
+
+        if kabupaten_pilih != "Semua Kabupaten":
+            df_tampil = df_tampil[
+                df_tampil["kabupaten"] == kabupaten_pilih
+            ]
+
+        if komoditas_pilih != "Semua Komoditas":
+            df_tampil = df_tampil[
+                df_tampil["nama_komoditas"] == komoditas_pilih
+            ]
+
+        st.caption(
+            f"Menampilkan {len(df_tampil)} dari {len(df_petani)} data petani."
+        )
+
+        st.dataframe(
+            df_tampil,
+            use_container_width=True,
+            hide_index=True
+        )
 
         col4.metric(
             "Total Komoditas",
