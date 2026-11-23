@@ -191,5 +191,33 @@ if menu == "Dashboard Utama":
         WHERE id_tanggal = %s
     """, (selected_date,))
 
-    if summary.empty:
-       st.warning("Data ringkasan tidak tersedia.")
+   
+    if summary.empty or int(summary.iloc[0]["total_petani"]) == 0:
+        st.warning("Data ringkasan tidak tersedia untuk tanggal yang dipilih.")
+
+    else:
+        row = summary.iloc[0]
+
+        st.subheader("Ringkasan Data Petani")
+
+        col1, col2, col3, col4 = st.columns(4)
+
+        col1.metric(
+            "Total Petani",
+            f'{int(row["total_petani"]):,}'
+        )
+
+        col2.metric(
+            "Total Luas Lahan",
+            f'{float(row["total_luas"]):,.2f} ha'
+        )
+
+        col3.metric(
+            "Total Kabupaten",
+            f'{int(row["total_kabupaten"]):,}'
+        )
+
+        col4.metric(
+            "Total Komoditas",
+            f'{int(row["total_komoditas"]):,}'
+        )
