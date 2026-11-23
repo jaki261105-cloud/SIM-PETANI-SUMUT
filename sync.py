@@ -191,5 +191,5 @@ if menu == "Dashboard Utama":
         WHERE id_tanggal = %s
     """, (selected_date,))
 
-    if summary.empty:
-        st.warning("Data ringkasan tidak
+    if summary.empty or summary.iloc[0]["total_petani"] == 0:
+        st.warning("Data ringkasan tidak tersedia untuk tanggal yang dipilih.")
