@@ -1,4 +1,4 @@
-mport streamlit as st
+import streamlit as st
 import pandas as pd
 import psycopg2
 import plotly.express as px
@@ -191,5 +191,5 @@ if menu == "Dashboard Utama":
         WHERE id_tanggal = %s
     """, (selected_date,))
 
-    if summary.empty or summary.iloc[0]["total_petani"] == 0:
-        st.warning("Data ringkasan tidak tersedia untuk tanggal yang dipilih.")
+    if summary.empty:
+        st.warning("Data ringkasan tidak
