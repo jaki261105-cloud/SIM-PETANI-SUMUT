@@ -445,7 +445,6 @@ elif menu == "Data Petani":
             use_container_width=True,
             hide_index=True
         )
-
         col4.metric(
             "Total Komoditas",
             f'{int(row["total_komoditas"]):,}'
